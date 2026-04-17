@@ -10,6 +10,8 @@ import sharp from 'sharp';
 import { Categories } from './collections/Categories';
 import { Media } from './collections/Media';
 import { Pages } from './collections/Pages';
+import { PostCategories } from './collections/PostCategories';
+import { Posts } from './collections/Posts';
 import { Products } from './collections/Products';
 import { Redirects } from './collections/Redirects';
 import { Users } from './collections/Users';
@@ -30,7 +32,7 @@ export default buildConfig({
       titleSuffix: ' — Mady Admin',
     },
   },
-  collections: [Pages, Products, Categories, Media, Users, Redirects],
+  collections: [Pages, Posts, PostCategories, Products, Categories, Media, Users, Redirects],
   globals: [Header, Footer, Settings],
   editor: lexicalEditor({}),
   sharp,

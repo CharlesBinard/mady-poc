@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { type Cheerio, type CheerioAPI, load as loadHtml } from 'cheerio';
 import 'dotenv/config';
 process.env.SKIP_REVALIDATE = 'true';
 
@@ -41,6 +42,26 @@ interface ScrapedPage {
   imageFile: string | null;
 }
 
+interface ScrapedPostCategory {
+  slug: string;
+  name: string;
+  description: string;
+  wpId: number;
+}
+
+interface ScrapedPost {
+  slug: string;
+  title: string;
+  url: string;
+  date: string;
+  excerpt: string;
+  contentHtml: string;
+  metaDescription: string;
+  categorySlug: string | null;
+  imageFile: string | null;
+  readingMinutes: number;
+}
+
 async function loadJson<T>(file: string, fallback: T): Promise<T> {
   try {
     const raw = await readFile(path.join(DATA_DIR, file), 'utf8');
@@ -72,29 +93,69 @@ function makeReference(slug: string, index: number): string {
   return `MAD-${initials}-${n}`.slice(0, 32);
 }
 
-function lexicalFromText(text: string) {
+function textNode(text: string, format = 0) {
+  return {
+    detail: 0,
+    format,
+    mode: 'normal',
+    style: '',
+    text,
+    type: 'text',
+    version: 1,
+  };
+}
+
+function paragraphNode(children: unknown[]) {
+  return {
+    children,
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    type: 'paragraph',
+    version: 1,
+    textFormat: 0,
+    textStyle: '',
+  };
+}
+
+function headingNode(tag: 'h2' | 'h3' | 'h4', children: unknown[]) {
+  return {
+    children,
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    type: 'heading',
+    version: 1,
+    tag,
+  };
+}
+
+function listNode(tag: 'ul' | 'ol', items: { text: string; format?: number }[]) {
+  return {
+    children: items.map((item, i) => ({
+      children: [textNode(item.text, item.format ?? 0)],
+      direction: 'ltr',
+      format: '',
+      indent: 0,
+      type: 'listitem',
+      version: 1,
+      value: i + 1,
+    })),
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    type: 'list',
+    version: 1,
+    listType: tag === 'ol' ? 'number' : 'bullet',
+    start: 1,
+    tag,
+  };
+}
+
+function rootNode(children: unknown[]) {
   return {
     root: {
-      children: [
-        {
-          children: [
-            {
-              detail: 0,
-              format: 0,
-              mode: 'normal',
-              style: '',
-              text,
-              type: 'text',
-              version: 1,
-            },
-          ],
-          direction: 'ltr',
-          format: '',
-          indent: 0,
-          type: 'paragraph',
-          version: 1,
-        },
-      ],
+      children,
       direction: 'ltr',
       format: '',
       indent: 0,
@@ -102,6 +163,90 @@ function lexicalFromText(text: string) {
       version: 1,
     },
   };
+}
+
+function lexicalFromText(text: string) {
+  return rootNode([paragraphNode([textNode(text)])]);
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: cheerio generic node type
+function textRunsFromElement($: CheerioAPI, el: Cheerio<any>, baseFormat = 0): unknown[] {
+  const runs: unknown[] = [];
+  el.contents().each((_, node) => {
+    if (node.type === 'text') {
+      const text = node.data.replace(/\s+/g, ' ');
+      if (text.trim()) runs.push(textNode(text, baseFormat));
+      return;
+    }
+    if (node.type !== 'tag') return;
+    const tag = node.name.toLowerCase();
+    const child = $(node);
+    let fmt = baseFormat;
+    if (tag === 'strong' || tag === 'b') fmt |= 1;
+    else if (tag === 'em' || tag === 'i') fmt |= 2;
+    else if (tag === 'u') fmt |= 8;
+    else if (tag === 's' || tag === 'del') fmt |= 4;
+
+    if (tag === 'br') {
+      runs.push({ type: 'linebreak', version: 1 });
+      return;
+    }
+    if (tag === 'a') {
+      const href = child.attr('href') ?? '#';
+      runs.push({
+        type: 'link',
+        version: 3,
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        fields: { url: href, newTab: false, linkType: 'custom' },
+        children: textRunsFromElement($, child, fmt),
+      });
+      return;
+    }
+    runs.push(...textRunsFromElement($, child, fmt));
+  });
+  return runs;
+}
+
+function lexicalFromHtml(html: string) {
+  const $ = loadHtml(`<div id="__root">${html}</div>`);
+  const root = $('#__root').first();
+  const children: unknown[] = [];
+
+  root.children().each((_, node) => {
+    if (node.type !== 'tag') return;
+    const tag = node.name.toLowerCase();
+    const el = $(node);
+
+    if (tag === 'h2' || tag === 'h3' || tag === 'h4') {
+      const runs = textRunsFromElement($, el);
+      if (runs.length > 0) children.push(headingNode(tag, runs));
+      return;
+    }
+    if (tag === 'ul' || tag === 'ol') {
+      const items: { text: string; format?: number }[] = [];
+      el.children('li').each((_i, li) => {
+        const text = $(li).text().replace(/\s+/g, ' ').trim();
+        if (text) items.push({ text });
+      });
+      if (items.length > 0) children.push(listNode(tag, items));
+      return;
+    }
+    if (tag === 'p') {
+      const runs = textRunsFromElement($, el);
+      if (runs.length > 0) children.push(paragraphNode(runs));
+      return;
+    }
+    // fallback: extract text as paragraph
+    const text = el.text().replace(/\s+/g, ' ').trim();
+    if (text) children.push(paragraphNode([textNode(text)]));
+  });
+
+  if (children.length === 0) {
+    children.push(paragraphNode([textNode('')]));
+  }
+  return rootNode(children);
 }
 
 async function upsertUser(payload: Awaited<ReturnType<typeof getPayload>>) {
@@ -144,7 +289,7 @@ async function upsertMedia(
 
 async function purgeCollection(
   payload: Awaited<ReturnType<typeof getPayload>>,
-  collection: 'products' | 'categories' | 'pages',
+  collection: 'products' | 'categories' | 'pages' | 'posts' | 'post-categories',
 ): Promise<void> {
   const { docs } = await payload.find({ collection, limit: 1000, depth: 0 });
   for (const doc of docs) {
@@ -225,6 +370,59 @@ async function upsertProduct(
       shortDescription: description.slice(0, 280),
       description: lexicalFromText(description) as never,
     },
+  });
+}
+
+async function upsertPostCategory(
+  payload: Awaited<ReturnType<typeof getPayload>>,
+  cat: ScrapedPostCategory,
+): Promise<number> {
+  const { docs } = await payload.find({
+    collection: 'post-categories',
+    where: { slug: { equals: cat.slug } },
+    limit: 1,
+    locale: 'fr',
+  });
+  if (docs[0]) return docs[0].id;
+  const created = await payload.create({
+    collection: 'post-categories',
+    locale: 'fr',
+    data: {
+      title: cat.name,
+      slug: cat.slug,
+      description: cat.description,
+    },
+  });
+  return created.id;
+}
+
+async function upsertPost(
+  payload: Awaited<ReturnType<typeof getPayload>>,
+  post: ScrapedPost,
+  categoryId: number | undefined,
+  coverMediaId: number | undefined,
+): Promise<void> {
+  const existing = await payload.find({
+    collection: 'posts',
+    where: { slug: { equals: post.slug } },
+    limit: 1,
+  });
+  if (existing.docs[0]) return;
+
+  await payload.create({
+    collection: 'posts',
+    locale: 'fr',
+    data: {
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt || post.metaDescription.slice(0, 500),
+      content: lexicalFromHtml(post.contentHtml) as never,
+      ...(categoryId !== undefined ? { category: categoryId } : {}),
+      ...(coverMediaId !== undefined ? { coverImage: coverMediaId } : {}),
+      publishedAt: post.date,
+      readingMinutes: post.readingMinutes,
+      _status: 'published',
+    } as never,
   });
 }
 
@@ -632,18 +830,22 @@ async function main(): Promise<void> {
   const categories = await loadJson<ScrapedCategory[]>('categories.json', []);
   const products = await loadJson<ScrapedProduct[]>('products.json', []);
   const pages = await loadJson<ScrapedPage[]>('pages.json', []);
+  const postCategories = await loadJson<ScrapedPostCategory[]>('post-categories.json', []);
+  const posts = await loadJson<ScrapedPost[]>('posts.json', []);
   if (categories.length === 0 || products.length === 0) {
     console.error('✗ No scraped data. Run `pnpm tsx scripts/scrape-mady.ts` first.');
     process.exit(1);
   }
   console.warn(
-    `  ${categories.length} categories, ${products.length} products, ${pages.length} pages`,
+    `  ${categories.length} categories, ${products.length} products, ${pages.length} pages, ${postCategories.length} post-cats, ${posts.length} posts`,
   );
 
   console.warn('→ Admin user');
   await upsertUser(payload);
 
-  console.warn('→ Purge stale pages/products/categories');
+  console.warn('→ Purge stale pages/posts/products/categories');
+  await purgeCollection(payload, 'posts');
+  await purgeCollection(payload, 'post-categories');
   await purgeCollection(payload, 'pages');
   await purgeCollection(payload, 'products');
   await purgeCollection(payload, 'categories');
@@ -690,6 +892,27 @@ async function main(): Promise<void> {
   for (const seed of PAGE_CONFIG) {
     const scraped = seed.scrapedSlug ? pageBySlug.get(seed.scrapedSlug) : undefined;
     await upsertPage(payload, seed, scraped, productMediaIds, firstCategoryId);
+  }
+
+  console.warn('→ Post categories');
+  const postCatIds: Record<string, number> = {};
+  for (const cat of postCategories) {
+    postCatIds[cat.slug] = await upsertPostCategory(payload, cat);
+  }
+
+  console.warn(`→ Posts (${posts.length})`);
+  for (const post of posts) {
+    let coverId: number | undefined;
+    if (post.imageFile) {
+      const filepath = path.join(ASSETS_DIR, post.imageFile);
+      try {
+        coverId = await upsertMedia(payload, filepath, `Couverture — ${post.title}`);
+      } catch (err) {
+        console.warn(`  ⚠ cover image failed for ${post.slug}:`, err);
+      }
+    }
+    const categoryId = post.categorySlug ? postCatIds[post.categorySlug] : undefined;
+    await upsertPost(payload, post, categoryId, coverId);
   }
 
   console.warn('→ Globals (Header, Footer, Settings)');
