@@ -1,15 +1,5 @@
 @import "tailwindcss";
-
-@theme {
-  --color-brand-primary: #101f2b;
-  --color-brand-accent: #fc4c02;
-  --color-brand-secondary: #00b0a1;
-  --color-background: #ffffff;
-  --color-surface: #f8f6f4;
-  --color-foreground: #101f2b;
-  --color-muted: #6c757d;
-  --color-border: #e0e0e0;
-}
+@import "../styles/brand.css";
 
 html {
   color: var(--color-foreground);
