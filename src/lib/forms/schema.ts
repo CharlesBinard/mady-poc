@@ -62,7 +62,9 @@ function fieldValidator(field: FormFieldBlock): z.ZodType {
     return required ? v : v.optional();
   }
   if (field.blockType === 'checkbox') {
-    return required ? z.boolean().refine((v) => v === true, 'Ce champ est requis') : z.boolean();
+    return required
+      ? z.boolean().refine((v) => v === true, 'Ce champ est requis')
+      : z.boolean().optional().default(false);
   }
   const str = z.string();
   return required ? str.min(1, 'Ce champ est requis') : str;

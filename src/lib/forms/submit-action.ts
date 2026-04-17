@@ -4,12 +4,22 @@ import { headers } from 'next/headers';
 import { sendEmail } from '@/lib/email';
 import { getPayloadClient } from '@/lib/payload';
 import { clientIp, rateLimit } from '@/lib/rate-limit';
+import type { Form } from '@/payload-types';
 import { buildZodSchema, type FormFieldBlock } from './schema';
 
 export interface SubmitResult {
   ok: boolean;
   message?: string;
   fieldErrors?: Record<string, string>;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export async function submitForm(
@@ -23,8 +33,23 @@ export async function submitForm(
   }
 
   const payload = await getPayloadClient();
-  const form = await payload.findByID({ collection: 'forms', id: formId }).catch(() => null);
-  if (!form) return { ok: false, message: 'Formulaire introuvable.' };
+
+  let form: Form;
+  try {
+    form = (await payload.findByID({
+      collection: 'forms',
+      id: formId,
+    })) as Form;
+  } catch (err) {
+    const notFound =
+      err &&
+      typeof err === 'object' &&
+      'status' in err &&
+      (err as { status?: number }).status === 404;
+    if (notFound) return { ok: false, message: 'Formulaire introuvable.' };
+    console.error('[submitForm] Payload findByID failed', err);
+    return { ok: false, message: 'Service indisponible. Merci de réessayer.' };
+  }
 
   const fields = (form.fields ?? []) as FormFieldBlock[];
   const schema = buildZodSchema(fields);
@@ -46,10 +71,7 @@ export async function submitForm(
   try {
     await payload.create({
       collection: 'form-submissions',
-      data: {
-        form: formId,
-        submissionData,
-      },
+      data: { form: formId, submissionData },
     });
   } catch (err) {
     console.error('[submitForm] Payload save failed', err);
@@ -58,13 +80,18 @@ export async function submitForm(
 
   const summary = submissionData.map((e) => `${e.field}: ${e.value}`).join('\n');
   const formTitle = typeof form.title === 'string' ? form.title : `Formulaire #${formId}`;
-  const senderEmail = typeof parsed.data.email === 'string' ? parsed.data.email : undefined;
+
+  const emailField = fields.find(
+    (f): f is Extract<FormFieldBlock, { blockType: 'email' }> => f.blockType === 'email',
+  );
+  const rawEmail = emailField ? parsed.data[emailField.name] : undefined;
+  const replyTo = typeof rawEmail === 'string' && rawEmail.length > 0 ? rawEmail : undefined;
 
   await sendEmail({
     subject: `[Mady] Nouveau message : ${formTitle}`,
     text: summary,
-    html: `<h1>${formTitle}</h1><pre>${summary.replace(/</g, '&lt;')}</pre>`,
-    ...(senderEmail ? { replyTo: senderEmail } : {}),
+    html: `<h1>${escapeHtml(formTitle)}</h1><pre>${escapeHtml(summary)}</pre>`,
+    ...(replyTo ? { replyTo } : {}),
   });
 
   return { ok: true, message: 'Message envoyé avec succès.' };

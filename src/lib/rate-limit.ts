@@ -11,6 +11,7 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   const existing = store.get(key);
 
   if (!existing || existing.resetAt < now) {
+    if (existing) store.delete(key);
     store.set(key, { count: 1, resetAt: now + windowMs });
     if (store.size > MAX_ENTRIES) {
       const oldest = store.keys().next().value;
@@ -22,6 +23,8 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   if (existing.count >= limit) return false;
 
   existing.count += 1;
+  store.delete(key);
+  store.set(key, existing);
   return true;
 }
 
