@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import '@/app/globals.css';
+import { SkipToContent } from '@/components/layout/SkipToContent';
+import { cn } from '@/lib/cn';
+import { fontBody, fontDisplay } from '@/lib/fonts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
@@ -13,8 +16,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
-      <body>{children}</body>
+    <html lang="fr" className={cn(fontDisplay.variable, fontBody.variable)}>
+      <body className="bg-background font-body text-foreground antialiased">
+        <SkipToContent />
+        <main id="main">{children}</main>
+      </body>
     </html>
   );
 }

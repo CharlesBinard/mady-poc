@@ -34,12 +34,17 @@
     "@payloadcms/plugin-seo": "^3.81.0",
     "@payloadcms/richtext-lexical": "^3.81.0",
     "@payloadcms/ui": "^3.81.0",
+    "@radix-ui/react-slot": "^1.2.4",
     "@t3-oss/env-nextjs": "^0.13.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.8.0",
     "next": "15.5.4",
     "next-intl": "^3.26.0",
     "payload": "^3.81.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "tailwind-merge": "^3.5.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
