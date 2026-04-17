@@ -159,17 +159,6 @@ const SEED_PRODUCTS = [
   },
 ];
 
-const LEXICAL_EMPTY = {
-  root: {
-    children: [],
-    direction: null,
-    format: '',
-    indent: 0,
-    type: 'root',
-    version: 1,
-  },
-};
-
 function lexicalFromText(text: string) {
   return {
     root: {
@@ -597,4 +586,3 @@ main().catch((err) => {
   console.error('✗ Seed failed', err);
   process.exit(1);
 });
-export const _lexicalEmpty = LEXICAL_EMPTY;
