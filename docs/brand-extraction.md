@@ -6,7 +6,7 @@ _Auto-généré par `scripts/extract-brand.ts`._
 
 - Stylesheet : https://madyproducts.b-cdn.net/wp-content/themes/mady/style.css
 - Homepage : https://mady.fr/
-- Logo détecté : undefined
+- Logo détecté : inline-svg-base64
 - Favicon : https://madyproducts.b-cdn.net/wp-content/themes/mady/dist/images/favicon.png
 
 ## Palette (top 10, defaults Bootstrap filtrés)

@@ -6,6 +6,7 @@ export const revalidateAfterChange: CollectionAfterChangeHook = async ({
   context,
   operation,
 }) => {
+  if (process.env.SKIP_REVALIDATE === 'true') return doc;
   if (context?.isAutosave) return doc;
   if (operation !== 'create' && operation !== 'update') return doc;
 

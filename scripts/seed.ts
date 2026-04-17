@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
+process.env.SKIP_REVALIDATE = 'true';
+
 import { getPayload } from 'payload';
 import config from '../src/payload.config';
 

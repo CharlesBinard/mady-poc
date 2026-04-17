@@ -6,6 +6,7 @@ import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs';
 import { seoPlugin } from '@payloadcms/plugin-seo';
 import { lexicalEditor } from '@payloadcms/richtext-lexical';
 import { buildConfig } from 'payload';
+import sharp from 'sharp';
 import { Categories } from './collections/Categories';
 import { Media } from './collections/Media';
 import { Pages } from './collections/Pages';
@@ -32,6 +33,7 @@ export default buildConfig({
   collections: [Pages, Products, Categories, Media, Users, Redirects],
   globals: [Header, Footer, Settings],
   editor: lexicalEditor({}),
+  sharp,
   secret: process.env.PAYLOAD_SECRET ?? '',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
