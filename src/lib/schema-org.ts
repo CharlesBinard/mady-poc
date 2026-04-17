@@ -1,5 +1,5 @@
 import type { AppLocale } from '@/i18n/routing';
-import type { Category, Product, Setting } from '@/payload-types';
+import type { Category, Post, Product, Setting } from '@/payload-types';
 import { siteUrl } from './seo';
 
 interface JsonLdNode {
@@ -143,6 +143,47 @@ export function breadcrumbSchema(items: { name: string; url?: string | undefined
       position: idx + 1,
       name: item.name,
       ...(item.url ? { item: item.url } : {}),
+    })),
+  };
+}
+
+export function articleSchema(post: Post, locale: AppLocale): JsonLdNode {
+  const base = siteUrl();
+  const cover = post.coverImage && typeof post.coverImage === 'object' ? post.coverImage : null;
+  const category = post.category && typeof post.category === 'object' ? post.category : null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    '@id': `${base}/${locale}/blog/${post.slug}#article`,
+    headline: post.title,
+    description: post.excerpt ?? undefined,
+    image: cover?.url ? [cover.url] : undefined,
+    datePublished: post.publishedAt ?? undefined,
+    dateModified: post.updatedAt ?? post.publishedAt ?? undefined,
+    inLanguage: locale,
+    articleSection: category?.title,
+    author: { '@id': `${base}/#organization` },
+    publisher: { '@id': `${base}/#organization` },
+    mainEntityOfPage: `${base}/${locale}/blog/${post.slug}`,
+  };
+}
+
+export function blogSchema(locale: AppLocale, posts: Post[]): JsonLdNode {
+  const base = siteUrl();
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': `${base}/${locale}/blog#blog`,
+    url: `${base}/${locale}/blog`,
+    inLanguage: locale,
+    isPartOf: { '@id': `${base}/#website` },
+    blogPost: posts.map((p) => ({
+      '@type': 'BlogPosting',
+      '@id': `${base}/${locale}/blog/${p.slug}#article`,
+      headline: p.title,
+      url: `${base}/${locale}/blog/${p.slug}`,
+      datePublished: p.publishedAt ?? undefined,
     })),
   };
 }

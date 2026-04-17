@@ -1,11 +1,14 @@
-import { revalidatePath, revalidateTag } from 'next/cache';
-import { NextResponse } from 'next/server';
+import { revalidatePath, revalidateTag } from "next/cache";
+import { NextResponse } from "next/server";
 
 export async function POST(request: Request): Promise<Response> {
-  const secret = request.headers.get('x-revalidate-secret');
+  const secret = request.headers.get("x-revalidate-secret");
   const expected = process.env.REVALIDATE_SECRET;
   if (!expected || secret !== expected) {
-    return NextResponse.json({ revalidated: false, error: 'unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { revalidated: false, error: "unauthorized" },
+      { status: 401 },
+    );
   }
 
   const body = (await request.json().catch(() => null)) as {
@@ -14,15 +17,22 @@ export async function POST(request: Request): Promise<Response> {
   } | null;
 
   if (!body) {
-    return NextResponse.json({ revalidated: false, error: 'invalid body' }, { status: 400 });
+    return NextResponse.json(
+      { revalidated: false, error: "invalid body" },
+      { status: 400 },
+    );
   }
 
-  const ALLOWED_PATH = /^\/(fr|en)(\/(produit|categorie-produit)\/[\w-]+|\/[\w-]+)?$/;
+  const ALLOWED_PATH =
+    /^\/(fr|en)(\/(produit|categorie-produit|blog)\/[\w-]+|\/blog|\/[\w-]+)?$/;
   if (body.path && !ALLOWED_PATH.test(body.path)) {
-    return NextResponse.json({ revalidated: false, error: 'invalid path' }, { status: 400 });
+    return NextResponse.json(
+      { revalidated: false, error: "invalid path" },
+      { status: 400 },
+    );
   }
 
-  if (body.tag) revalidateTag(body.tag, 'max');
+  if (body.tag) revalidateTag(body.tag, "max");
   if (body.path) revalidatePath(body.path);
 
   return NextResponse.json({

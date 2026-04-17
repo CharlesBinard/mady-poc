@@ -9,7 +9,18 @@
     "menu": "Menu",
     "close": "Fermer",
     "readMore": "En savoir plus",
-    "requestQuote": "Demander un devis"
+    "requestQuote": "Demander un devis",
+    "blog": "Blog"
+  },
+  "blog": {
+    "title": "Blog",
+    "subtitle": "Conseils d'experts, actualités et innovations autour du travail en hauteur.",
+    "allCategories": "Toutes les catégories",
+    "readingTime": "{minutes} min de lecture",
+    "publishedOn": "Publié le {date}",
+    "relatedPosts": "À lire aussi",
+    "backToBlog": "Retour au blog",
+    "noPosts": "Aucun article pour le moment."
   },
   "meta": {
     "siteName": "Mady",

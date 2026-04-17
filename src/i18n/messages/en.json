@@ -9,7 +9,18 @@
     "menu": "Menu",
     "close": "Close",
     "readMore": "Learn more",
-    "requestQuote": "Request a quote"
+    "requestQuote": "Request a quote",
+    "blog": "Blog"
+  },
+  "blog": {
+    "title": "Blog",
+    "subtitle": "Expert insights, news and innovations around working at height.",
+    "allCategories": "All categories",
+    "readingTime": "{minutes} min read",
+    "publishedOn": "Published {date}",
+    "relatedPosts": "Related articles",
+    "backToBlog": "Back to blog",
+    "noPosts": "No articles yet."
   },
   "meta": {
     "siteName": "Mady",
