@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+dist/
+build/
+out/
+.turbo/
+
+# Payload
+src/payload-types.ts
+src/payload.config.js
+
+# Env
+.env
+.env*.local
+.env.production
+
+# Logs
+*.log
+pnpm-debug.log*
+yarn-debug.log*
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Scripts assets (scraped)
+scripts/assets/
+scripts/data/*.json
+!scripts/data/.gitkeep
+
+# Media uploads (dev only)
+media/
+public/media/
+
+# Generated docs
+docs/lighthouse.png
+
+# Misc
+.cache/
+.tmp/
+*.tsbuildinfo
+next-env.d.ts
