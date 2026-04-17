@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload';
 import { slugField } from '../fields/slug';
+import { revalidateAfterChange } from '../hooks/revalidate';
 
 export const Products: CollectionConfig = {
   slug: 'products',
@@ -14,6 +15,9 @@ export const Products: CollectionConfig = {
   },
   access: {
     read: () => true,
+  },
+  hooks: {
+    afterChange: [revalidateAfterChange],
   },
   versions: {
     drafts: {

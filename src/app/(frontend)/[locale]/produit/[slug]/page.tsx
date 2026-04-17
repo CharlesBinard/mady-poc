@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { ProductView } from '@/components/product/ProductView';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { Container } from '@/components/ui/container';
 import { type AppLocale, isAppLocale } from '@/i18n/routing';
 import { getPayloadClient } from '@/lib/payload';
-import { buildAlternates } from '@/lib/seo';
+import { breadcrumbSchema, productSchema } from '@/lib/schema-org';
+import { buildAlternates, siteUrl } from '@/lib/seo';
 import type { Product } from '@/payload-types';
 
 export const revalidate = 3600;
@@ -68,8 +70,20 @@ export default async function ProductPage({ params }: ProductPageProps) {
     { label: product.title },
   ];
 
+  const base = siteUrl();
+  const jsonLd = [
+    productSchema(product, locale),
+    breadcrumbSchema(
+      crumbs.map((c) => ({
+        name: c.label,
+        url: c.href ? `${base}${c.href}` : undefined,
+      })),
+    ),
+  ];
+
   return (
     <div className="bg-background">
+      <JsonLd data={jsonLd} />
       <Container className="pt-8">
         <Breadcrumbs items={crumbs} />
       </Container>

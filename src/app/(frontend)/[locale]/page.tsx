@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import { type AnyBlock, BlockRenderer } from '@/blocks/renderer';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { type AppLocale, isAppLocale } from '@/i18n/routing';
 import { getPayloadClient } from '@/lib/payload';
+import { organizationSchema, websiteSchema } from '@/lib/schema-org';
 import { buildAlternates } from '@/lib/seo';
 
 export const revalidate = 3600;
@@ -43,22 +45,39 @@ export default async function HomePage({ params }: HomePageProps) {
   if (!isAppLocale(locale)) notFound();
   setRequestLocale(locale);
 
+  const payload = await getPayloadClient();
+  const settings = await payload.findGlobal({
+    slug: 'settings',
+    locale,
+    depth: 0,
+  });
   const home = await getHome(locale);
+
+  const jsonLdGraph = [organizationSchema(settings), websiteSchema(locale)];
+
   if (!home) {
     return (
-      <section className="flex min-h-[60vh] items-center justify-center px-6 text-center">
-        <div>
-          <h1 className="font-display font-semibold text-3xl text-brand-primary">
-            Bienvenue sur Mady
-          </h1>
-          <p className="mt-3 text-muted">
-            Lance <code>pnpm seed</code> pour peupler le contenu.
-          </p>
-        </div>
-      </section>
+      <>
+        <JsonLd data={jsonLdGraph} />
+        <section className="flex min-h-[60vh] items-center justify-center px-6 text-center">
+          <div>
+            <h1 className="font-display font-semibold text-3xl text-brand-primary">
+              Bienvenue sur Mady
+            </h1>
+            <p className="mt-3 text-muted">
+              Lance <code>pnpm seed</code> pour peupler le contenu.
+            </p>
+          </div>
+        </section>
+      </>
     );
   }
 
   const layout = (home.layout ?? []) as AnyBlock[];
-  return <BlockRenderer blocks={layout} locale={locale} />;
+  return (
+    <>
+      <JsonLd data={jsonLdGraph} />
+      <BlockRenderer blocks={layout} locale={locale} />
+    </>
+  );
 }

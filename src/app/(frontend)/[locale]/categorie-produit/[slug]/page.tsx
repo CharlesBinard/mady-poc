@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { Container } from '@/components/ui/container';
 import { type AppLocale, isAppLocale } from '@/i18n/routing';
 import { getPayloadClient } from '@/lib/payload';
-import { buildAlternates } from '@/lib/seo';
+import { breadcrumbSchema, categorySchema } from '@/lib/schema-org';
+import { buildAlternates, siteUrl } from '@/lib/seo';
 import type { Category, Product } from '@/payload-types';
 
 export const revalidate = 3600;
@@ -67,8 +69,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const t = await getTranslations('common');
   const heroImage = typeof category.heroImage === 'object' ? category.heroImage : null;
 
+  const base = siteUrl();
+  const jsonLd = [
+    categorySchema(category, products, locale),
+    breadcrumbSchema([{ name: t('home'), url: `${base}/${locale}` }, { name: category.title }]),
+  ];
+
   return (
     <div className="bg-background">
+      <JsonLd data={jsonLd} />
       <Container className="pt-8">
         <Breadcrumbs
           items={[{ label: t('home'), href: `/${locale}` }, { label: category.title }]}

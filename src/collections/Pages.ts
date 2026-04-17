@@ -8,6 +8,7 @@ import { TestimonialsBlock } from '../blocks/testimonials/testimonials.config';
 import { TextImageBlock } from '../blocks/text-image/text-image.config';
 import { VideoBlock } from '../blocks/video/video.config';
 import { slugField } from '../fields/slug';
+import { revalidateAfterChange } from '../hooks/revalidate';
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -30,6 +31,9 @@ export const Pages: CollectionConfig = {
   },
   access: {
     read: () => true,
+  },
+  hooks: {
+    afterChange: [revalidateAfterChange],
   },
   versions: {
     drafts: {
