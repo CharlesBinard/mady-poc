@@ -1,4 +1,12 @@
 import type { CollectionConfig } from 'payload';
+import { CtaBlock } from '../blocks/cta/cta.config';
+import { FaqBlock } from '../blocks/faq/faq.config';
+import { GalleryBlock } from '../blocks/gallery/gallery.config';
+import { HeroBlock } from '../blocks/hero/hero.config';
+import { ProductGridBlock } from '../blocks/product-grid/product-grid.config';
+import { TestimonialsBlock } from '../blocks/testimonials/testimonials.config';
+import { TextImageBlock } from '../blocks/text-image/text-image.config';
+import { VideoBlock } from '../blocks/video/video.config';
 import { slugField } from '../fields/slug';
 
 export const Pages: CollectionConfig = {
@@ -53,7 +61,16 @@ export const Pages: CollectionConfig = {
     {
       name: 'layout',
       type: 'blocks',
-      blocks: [],
+      blocks: [
+        HeroBlock,
+        TextImageBlock,
+        ProductGridBlock,
+        CtaBlock,
+        FaqBlock,
+        TestimonialsBlock,
+        GalleryBlock,
+        VideoBlock,
+      ],
       admin: {
         description: 'Blocs de contenu assemblés (Hero, TextImage, ProductGrid, etc.).',
       },
