@@ -17,7 +17,7 @@ async function resolveRedirect(
 ): Promise<{ to: string; status: 301 | 302 } | null> {
   const pathname = request.nextUrl.pathname;
   if (!pathname || pathname === '/') return null;
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin;
+  const base = request.nextUrl.origin;
   try {
     const res = await fetch(`${base}/api/redirect-lookup?from=${encodeURIComponent(pathname)}`, {
       next: { revalidate: 300, tags: ['redirects'] },
