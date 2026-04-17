@@ -27,6 +27,7 @@
     "prepare": "lefthook install || true"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@payloadcms/db-postgres": "^3.81.0",
     "@payloadcms/next": "^3.81.0",
     "@payloadcms/plugin-form-builder": "^3.81.0",
@@ -44,6 +45,7 @@
     "payload": "^3.81.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "react-hook-form": "^7.72.1",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.0.0"
   },
