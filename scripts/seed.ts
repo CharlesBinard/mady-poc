@@ -29,6 +29,18 @@ interface ScrapedProduct {
   imageFiles: string[];
 }
 
+interface ScrapedPage {
+  slug: string;
+  title: string;
+  url: string;
+  metaDescription: string;
+  h1: string | null;
+  h2s: string[];
+  h3s: string[];
+  paragraphs: string[];
+  imageFile: string | null;
+}
+
 async function loadJson<T>(file: string, fallback: T): Promise<T> {
   try {
     const raw = await readFile(path.join(DATA_DIR, file), 'utf8');
@@ -132,7 +144,7 @@ async function upsertMedia(
 
 async function purgeCollection(
   payload: Awaited<ReturnType<typeof getPayload>>,
-  collection: 'products' | 'categories',
+  collection: 'products' | 'categories' | 'pages',
 ): Promise<void> {
   const { docs } = await payload.find({ collection, limit: 1000, depth: 0 });
   for (const doc of docs) {
@@ -216,37 +228,257 @@ async function upsertProduct(
   });
 }
 
+function buildHomeLayout(
+  home: ScrapedPage | undefined,
+  productMediaIds: number[],
+  firstCategoryId: number | undefined,
+) {
+  if (!home) return [];
+  const img = (i: number) => productMediaIds[i % productMediaIds.length] ?? productMediaIds[0];
+
+  const h1 = home.h1 ?? 'Moyens d\u2019accès & protection de toiture';
+  const paragraphs = home.paragraphs;
+  const valuesParagraph = (start: number) =>
+    paragraphs.slice(start, start + 1).filter((p) => p.length > 100);
+
+  const quality = valuesParagraph(1)[0];
+  const simplicity = valuesParagraph(2)[0];
+  const trust = valuesParagraph(3)[0];
+
+  const testimonialQuotes = home.h2s
+    .filter((q) => q.startsWith('\u201C') || q.startsWith('"'))
+    .map((q) => q.replace(/^["\u201C\u201D]|["\u201C\u201D]$/g, '').trim())
+    .slice(0, 4);
+  const testimonialAuthors = paragraphs
+    .filter((p) => /^[A-ZÉÈ][a-zéèêàç]+.*?[.\s]\s*[A-Z]\./.test(p))
+    .slice(0, 4);
+
+  const layout: Record<string, unknown>[] = [
+    {
+      blockType: 'hero',
+      variant: 'split',
+      eyebrow: 'Fabricant français',
+      title: h1,
+      subtitle: home.metaDescription,
+      image: img(0),
+      cta: { label: 'Demander un devis', href: '/fr/contact' },
+    },
+  ];
+
+  if (quality) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'right',
+      eyebrow: 'Qualité',
+      heading: 'La qualité, sans compromis',
+      body: lexicalFromText(quality),
+      image: img(1),
+    });
+  }
+  if (simplicity) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'left',
+      eyebrow: 'Simplicité',
+      heading: 'La simplicité, toujours',
+      body: lexicalFromText(simplicity),
+      image: img(2),
+    });
+  }
+  if (trust) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'right',
+      eyebrow: 'Confiance',
+      heading: 'Une relation de confiance',
+      body: lexicalFromText(trust),
+      image: img(3),
+    });
+  }
+
+  if (firstCategoryId) {
+    layout.push({
+      blockType: 'product-grid',
+      eyebrow: 'Nos produits',
+      heading: 'Découvrez notre gamme',
+      subheading: 'Accès, protection collective et individuelle, circulation sur toiture.',
+      source: 'category',
+      category: firstCategoryId,
+      limit: 6,
+    });
+  }
+
+  if (testimonialQuotes.length > 0) {
+    layout.push({
+      blockType: 'testimonials',
+      heading: 'Ils nous font confiance',
+      items: testimonialQuotes.map((quote, i) => ({
+        quote,
+        author: testimonialAuthors[i] ?? 'Client Mady',
+      })),
+    });
+  }
+
+  layout.push({
+    blockType: 'cta',
+    variant: 'dark',
+    heading: 'Un produit sur mesure ?',
+    body: 'Faites appel à nos experts pour configurer une solution adaptée à vos besoins.',
+    primary: { label: 'Demander un devis', href: '/fr/contact' },
+    secondary: {
+      label: 'Voir les produits',
+      href: '/fr/categorie-produit/moyens-dacces',
+    },
+  });
+
+  return layout;
+}
+
+function buildAboutLayout(about: ScrapedPage | undefined, productMediaIds: number[]) {
+  if (!about) return [];
+  const img = (i: number) => productMediaIds[i % productMediaIds.length] ?? productMediaIds[0];
+  const longParagraphs = about.paragraphs.filter((p) => p.length > 150);
+
+  const layout: Record<string, unknown>[] = [];
+
+  const [intro, quality, simplicity, trust] = longParagraphs;
+
+  if (intro) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'right',
+      eyebrow: 'Notre mission',
+      heading: 'Sécuriser le travail en hauteur',
+      body: lexicalFromText(intro),
+      image: img(0),
+    });
+  }
+  if (quality) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'left',
+      eyebrow: 'Expertise',
+      heading: 'Une expertise expérimentée',
+      body: lexicalFromText(quality),
+      image: img(1),
+    });
+  }
+  if (simplicity) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'right',
+      eyebrow: 'Simplicité',
+      heading: 'La simplicité toujours',
+      body: lexicalFromText(simplicity),
+      image: img(2),
+    });
+  }
+  if (trust) {
+    layout.push({
+      blockType: 'text-image',
+      imagePosition: 'left',
+      eyebrow: 'Proximité',
+      heading: 'Le soutien de spécialistes',
+      body: lexicalFromText(trust),
+      image: img(3),
+    });
+  }
+
+  layout.push({
+    blockType: 'cta',
+    variant: 'light',
+    heading: 'Discutons de votre projet',
+    body: 'Une équipe à l\u2019écoute, pour répondre à vos besoins en matière de sécurité en hauteur.',
+    primary: { label: 'Nous contacter', href: '/fr/contact' },
+  });
+
+  return layout;
+}
+
+interface PageSeed {
+  slug: string;
+  titleEn: string;
+  scrapedSlug?: string;
+  layout?: 'home' | 'about' | 'simple';
+  fallbackTitle?: string;
+  fallbackSubtitle?: string;
+}
+
+const PAGE_CONFIG: PageSeed[] = [
+  {
+    slug: 'home',
+    titleEn: 'Home',
+    scrapedSlug: 'page-accueil',
+    layout: 'home',
+  },
+  {
+    slug: 'a-propos',
+    titleEn: 'About',
+    scrapedSlug: 'a-propos',
+    layout: 'about',
+  },
+  {
+    slug: 'mentions-legales',
+    titleEn: 'Legal notice',
+    scrapedSlug: 'mentions-legales',
+    layout: 'simple',
+    fallbackTitle: 'Mentions légales',
+    fallbackSubtitle: 'Informations légales concernant Mady SAS.',
+  },
+  {
+    slug: 'politique-confidentialite',
+    titleEn: 'Privacy policy',
+    scrapedSlug: 'confidentialite',
+    layout: 'simple',
+    fallbackTitle: 'Politique de confidentialité',
+    fallbackSubtitle: 'Protection et gestion de vos données personnelles.',
+  },
+  {
+    slug: 'conditions',
+    titleEn: 'Terms of sale',
+    scrapedSlug: 'conditions',
+    layout: 'simple',
+    fallbackTitle: 'Conditions générales de vente',
+    fallbackSubtitle: 'Nos conditions commerciales.',
+  },
+];
+
 async function upsertPage(
   payload: Awaited<ReturnType<typeof getPayload>>,
-  slug: string,
-  title: { fr: string; en: string },
-  heroTitle?: { fr: string; en: string },
+  seed: PageSeed,
+  scraped: ScrapedPage | undefined,
+  productMediaIds: number[],
+  firstCategoryId: number | undefined,
 ): Promise<void> {
-  const existing = await payload.find({
-    collection: 'pages',
-    where: { slug: { equals: slug } },
-    limit: 1,
-  });
-  if (existing.docs[0]) return;
+  const title = scraped?.title ?? seed.fallbackTitle ?? seed.slug;
+  const heroTitle = scraped?.h1 ?? title;
+  const heroSubtitle = scraped?.metaDescription || seed.fallbackSubtitle;
 
-  const created = await payload.create({
+  let layoutBlocks: Record<string, unknown>[] = [];
+  if (seed.layout === 'home') {
+    layoutBlocks = buildHomeLayout(scraped, productMediaIds, firstCategoryId);
+  } else if (seed.layout === 'about') {
+    layoutBlocks = buildAboutLayout(scraped, productMediaIds);
+  }
+
+  const hero =
+    seed.layout === 'home'
+      ? undefined
+      : {
+          title: heroTitle,
+          subtitle: heroSubtitle,
+          ...(seed.layout === 'simple' ? {} : { eyebrow: 'Mady' }),
+        };
+
+  await payload.create({
     collection: 'pages',
     locale: 'fr',
     data: {
-      title: title.fr,
-      slug,
-      hero: heroTitle ? { title: heroTitle.fr } : undefined,
-      layout: [],
+      title,
+      slug: seed.slug,
+      hero,
+      layout: layoutBlocks,
       _status: 'published',
-    } as never,
-  });
-  await payload.update({
-    collection: 'pages',
-    id: created.id,
-    locale: 'en',
-    data: {
-      title: title.en,
-      hero: heroTitle ? { title: heroTitle.en } : undefined,
     } as never,
   });
 }
@@ -264,8 +496,8 @@ async function upsertGlobals(
         legalName: 'Mady SAS',
         siret: '',
         address: 'France',
-        email: 'contact@mady.fr',
-        phone: '',
+        email: 'bonjour@mady.fr',
+        phone: '+33 4 66 26 41 13',
       },
     },
   });
@@ -309,7 +541,8 @@ async function upsertGlobals(
       ],
       contact: {
         address: 'France',
-        email: 'contact@mady.fr',
+        email: 'bonjour@mady.fr',
+        phone: '+33 4 66 26 41 13',
       },
       legal: [
         { label: 'Mentions légales', href: '/fr/mentions-legales' },
@@ -317,6 +550,7 @@ async function upsertGlobals(
           label: 'Politique de confidentialité',
           href: '/fr/politique-confidentialite',
         },
+        { label: 'CGV', href: '/fr/conditions' },
       ],
     },
   });
@@ -397,16 +631,20 @@ async function main(): Promise<void> {
   console.warn('→ Loading scraped data');
   const categories = await loadJson<ScrapedCategory[]>('categories.json', []);
   const products = await loadJson<ScrapedProduct[]>('products.json', []);
+  const pages = await loadJson<ScrapedPage[]>('pages.json', []);
   if (categories.length === 0 || products.length === 0) {
     console.error('✗ No scraped data. Run `pnpm tsx scripts/scrape-mady.ts` first.');
     process.exit(1);
   }
-  console.warn(`  ${categories.length} categories, ${products.length} products`);
+  console.warn(
+    `  ${categories.length} categories, ${products.length} products, ${pages.length} pages`,
+  );
 
   console.warn('→ Admin user');
   await upsertUser(payload);
 
-  console.warn('→ Purge stale products/categories');
+  console.warn('→ Purge stale pages/products/categories');
+  await purgeCollection(payload, 'pages');
   await purgeCollection(payload, 'products');
   await purgeCollection(payload, 'categories');
 
@@ -424,6 +662,7 @@ async function main(): Promise<void> {
   }
 
   console.warn('→ Products');
+  const productMediaIds: number[] = [];
   for (const [index, prod] of products.entries()) {
     const categoryId = prod.categorySlug ? catIds[prod.categorySlug] : undefined;
     if (!categoryId) {
@@ -440,31 +679,18 @@ async function main(): Promise<void> {
         console.warn(`  ⚠ image upload failed for ${prod.slug}:`, err);
       }
     }
+    productMediaIds.push(mediaId);
 
     await upsertProduct(payload, prod, categoryId, mediaId, index);
   }
 
   console.warn('→ Pages');
-  await upsertPage(
-    payload,
-    'home',
-    { fr: 'Accueil', en: 'Home' },
-    { fr: 'Bien protéger, tout simplement.', en: 'Safety, made simple.' },
-  );
-  await upsertPage(
-    payload,
-    'a-propos',
-    { fr: 'À propos', en: 'About' },
-    { fr: 'À propos de Mady', en: 'About Mady' },
-  );
-  await upsertPage(payload, 'mentions-legales', {
-    fr: 'Mentions légales',
-    en: 'Legal notice',
-  });
-  await upsertPage(payload, 'politique-confidentialite', {
-    fr: 'Politique de confidentialité',
-    en: 'Privacy policy',
-  });
+  const firstCategoryId = categories[0] ? catIds[categories[0].slug] : undefined;
+  const pageBySlug = new Map(pages.map((p) => [p.slug, p]));
+  for (const seed of PAGE_CONFIG) {
+    const scraped = seed.scrapedSlug ? pageBySlug.get(seed.scrapedSlug) : undefined;
+    await upsertPage(payload, seed, scraped, productMediaIds, firstCategoryId);
+  }
 
   console.warn('→ Globals (Header, Footer, Settings)');
   await upsertGlobals(payload, categories);

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { load } from 'cheerio';
 import { fetch } from 'undici';
 
 const USER_AGENT = 'mady-poc-scraper/1.0 (authorized, internal use)';
@@ -137,6 +138,110 @@ async function fetchProducts(categories: ScrapedCategory[]): Promise<ScrapedProd
   return products;
 }
 
+interface WpPage {
+  id: number;
+  slug: string;
+  title: { rendered: string };
+  link: string;
+  yoast_head_json?: {
+    title?: string;
+    description?: string;
+    og_image?: WpOgImage[];
+  };
+}
+
+interface ScrapedPage {
+  slug: string;
+  title: string;
+  url: string;
+  metaDescription: string;
+  h1: string | null;
+  h2s: string[];
+  h3s: string[];
+  paragraphs: string[];
+  imageFile: string | null;
+}
+
+const PAGE_SLUGS = [
+  'page-accueil',
+  'a-propos',
+  'produits',
+  'contact',
+  'mentions-legales',
+  'conditions',
+  'confidentialite',
+  'blog',
+] as const;
+
+function extractFromHtml(html: string): Pick<ScrapedPage, 'h1' | 'h2s' | 'h3s' | 'paragraphs'> {
+  const $ = load(html);
+  const clean = (t: string) => t.replace(/\s+/g, ' ').trim();
+  const reject = (t: string) =>
+    t.length < 20 ||
+    t.length > 700 ||
+    /document\.|getElementById|newsletter|©|droits sont réservés|Conçu par/i.test(t);
+
+  const h1 = $('h1').first().text().trim() || null;
+  const h2s = $('h2')
+    .map((_, el) => clean($(el).text()))
+    .get()
+    .filter((t) => t.length > 3 && t.length < 200);
+  const h3s = $('h3')
+    .map((_, el) => clean($(el).text()))
+    .get()
+    .filter((t) => t.length > 3 && t.length < 200);
+
+  const seen = new Set<string>();
+  const paragraphs: string[] = [];
+  $('p, .et_pb_text_inner').each((_, el) => {
+    const t = clean($(el).text());
+    if (reject(t) || seen.has(t)) return;
+    seen.add(t);
+    paragraphs.push(t);
+  });
+
+  return { h1, h2s, h3s, paragraphs };
+}
+
+async function fetchPages(): Promise<ScrapedPage[]> {
+  const raw = await fetchJson<WpPage[]>(`${MADY}/wp-json/wp/v2/pages?per_page=50`);
+  const bySlug = new Map(raw.map((p) => [p.slug, p]));
+
+  const pages: ScrapedPage[] = [];
+  for (const slug of PAGE_SLUGS) {
+    const wp = bySlug.get(slug);
+    if (!wp) {
+      console.warn(`  ⚠ page "${slug}" not found on mady.fr`);
+      continue;
+    }
+
+    await sleep(DELAY_MS);
+    console.warn(`→ Page: /${slug === 'page-accueil' ? '' : `${slug}/`}`);
+    const res = await fetch(wp.link, {
+      headers: { 'user-agent': USER_AGENT },
+    });
+    const html = res.ok ? await res.text() : '';
+    const extracted = html ? extractFromHtml(html) : { h1: null, h2s: [], h3s: [], paragraphs: [] };
+
+    let imageFile: string | null = null;
+    const ogImage = wp.yoast_head_json?.og_image?.find((i) => i.url)?.url;
+    if (ogImage) {
+      await sleep(DELAY_MS);
+      imageFile = await downloadImage(ogImage);
+    }
+
+    pages.push({
+      slug,
+      title: decodeHtml(wp.title.rendered),
+      url: wp.link,
+      metaDescription: decodeHtml(wp.yoast_head_json?.description ?? ''),
+      imageFile,
+      ...extracted,
+    });
+  }
+  return pages;
+}
+
 async function main(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
   await mkdir(DATA_DIR, { recursive: true });
@@ -150,10 +255,17 @@ async function main(): Promise<void> {
   const products = await fetchProducts(categories);
   console.warn(`  found ${products.length} products`);
 
+  await sleep(DELAY_MS);
+  console.warn('→ Fetching pages from WP REST + HTML');
+  const pages = await fetchPages();
+  console.warn(`  found ${pages.length} pages`);
+
   await writeFile(path.join(DATA_DIR, 'categories.json'), JSON.stringify(categories, null, 2));
   await writeFile(path.join(DATA_DIR, 'products.json'), JSON.stringify(products, null, 2));
+  await writeFile(path.join(DATA_DIR, 'pages.json'), JSON.stringify(pages, null, 2));
   console.warn(`✓ ${categories.length} categories → scripts/data/categories.json`);
   console.warn(`✓ ${products.length} products → scripts/data/products.json`);
+  console.warn(`✓ ${pages.length} pages → scripts/data/pages.json`);
 }
 
 main().catch((err) => {
