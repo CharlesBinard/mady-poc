@@ -10,156 +10,55 @@ import config from '../src/payload.config';
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 const ASSETS_DIR = path.join(dirname, 'assets');
+const DATA_DIR = path.join(dirname, 'data');
 const FALLBACK_IMAGE = path.resolve(dirname, '..', 'public', 'brand', 'logo-mady.png');
+
+interface ScrapedCategory {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+}
 
 interface ScrapedProduct {
   slug: string;
   title: string;
   url: string;
   description: string;
+  categorySlug: string | null;
   imageFiles: string[];
 }
 
-async function loadScraped(): Promise<ScrapedProduct[]> {
+async function loadJson<T>(file: string, fallback: T): Promise<T> {
   try {
-    const raw = await readFile(path.join(dirname, 'data', 'products.json'), 'utf8');
-    return JSON.parse(raw) as ScrapedProduct[];
+    const raw = await readFile(path.join(DATA_DIR, file), 'utf8');
+    return JSON.parse(raw) as T;
   } catch {
-    return [];
+    return fallback;
   }
 }
 
-const SEED_CATEGORIES = [
-  {
-    slug: 'moyens-acces',
-    title: { fr: "Moyens d'accès", en: 'Access solutions' },
-    description: {
-      fr: 'Escaliers industriels, échelles à crinoline, passerelles — accès sécurisés permanents.',
-      en: 'Industrial staircases, cage ladders, walkways — permanent safe access.',
-    },
-  },
-  {
-    slug: 'protection-collective',
-    title: { fr: 'Protection collective', en: 'Collective protection' },
-    description: {
-      fr: 'Garde-corps, barrières, saut-de-loup. Conformité NF E85-015.',
-      en: 'Guardrails, barriers, skylight protection. NF E85-015 compliant.',
-    },
-  },
-  {
-    slug: 'protection-individuelle',
-    title: { fr: 'Protection individuelle', en: 'Individual protection' },
-    description: {
-      fr: "Lignes de vie, points d'ancrage, systèmes antichute.",
-      en: 'Lifelines, anchor points, fall-arrest systems.',
-    },
-  },
-];
+function inferCertifications(text: string): string[] {
+  const certs: string[] = [];
+  const t = text.toLowerCase();
+  if (/nf\s*e85-?015|e85-?015/.test(t)) certs.push('nf-e85-015');
+  if (/en\s*iso\s*14122|14122/.test(t)) certs.push('en-iso-14122');
+  if (/nf\s*en\s*1090|en\s*1090/.test(t)) certs.push('nf-en-1090');
+  certs.push('ce');
+  return certs;
+}
 
-const SEED_PRODUCTS = [
-  {
-    slug: 'echelle-crinoline',
-    reference: 'MAD-ECR-001',
-    category: 'moyens-acces',
-    title: { fr: 'Échelle à crinoline', en: 'Cage ladder' },
-    shortDescription: {
-      fr: 'Échelle verticale fixe avec arceaux de protection dorsale. Accès toiture ou plateforme en hauteur. Conforme EN ISO 14122-4.',
-      en: 'Vertical fixed ladder with dorsal safety cage. Roof or elevated platform access. EN ISO 14122-4 compliant.',
-    },
-    certifications: ['en-iso-14122', 'ce'],
-    specs: [
-      { label: 'Matériau', value: 'Acier galvanisé à chaud' },
-      { label: 'Hauteur maximale', value: '10 m sans palier intermédiaire' },
-      { label: 'Charge admissible', value: '150 kg par échelon' },
-      { label: 'Écartement arceaux', value: '650 mm' },
-    ],
-  },
-  {
-    slug: 'escalier-industriel-droit',
-    reference: 'MAD-ESC-D01',
-    category: 'moyens-acces',
-    title: {
-      fr: 'Escalier industriel droit',
-      en: 'Straight industrial staircase',
-    },
-    shortDescription: {
-      fr: 'Escalier droit acier à marches caillebotis. Fabrication française sur mesure. Conforme NF EN 1090.',
-      en: 'Straight steel staircase with grating steps. Custom made in France. NF EN 1090 compliant.',
-    },
-    certifications: ['nf-en-1090', 'en-iso-14122', 'ce'],
-    specs: [
-      { label: 'Matériau', value: 'Acier S235JR galvanisé' },
-      { label: 'Angle', value: '30° à 45°' },
-      { label: 'Charge admissible', value: '500 kg/m²' },
-      { label: 'Largeur utile', value: '600 à 1200 mm' },
-    ],
-  },
-  {
-    slug: 'escalier-helicoidal',
-    reference: 'MAD-ESC-H01',
-    category: 'moyens-acces',
-    title: { fr: 'Escalier hélicoïdal', en: 'Helical staircase' },
-    shortDescription: {
-      fr: 'Escalier en colimaçon compact pour accès silo, cuve ou mezzanine. Encombrement minimal.',
-      en: 'Compact spiral staircase for silo, tank or mezzanine access. Minimal footprint.',
-    },
-    certifications: ['nf-en-1090', 'ce'],
-    specs: [
-      { label: 'Matériau', value: 'Acier galvanisé' },
-      { label: 'Diamètre', value: '1500 à 2500 mm' },
-      { label: 'Hauteur', value: "Jusqu'à 6 m" },
-    ],
-  },
-  {
-    slug: 'garde-corps-acier',
-    reference: 'MAD-GC-001',
-    category: 'protection-collective',
-    title: { fr: 'Garde-corps acier', en: 'Steel guardrail' },
-    shortDescription: {
-      fr: 'Garde-corps préfabriqué acier. Conforme NF E85-015. Fixation toiture ou dalle.',
-      en: 'Prefabricated steel guardrail. NF E85-015 compliant. Roof or slab fixation.',
-    },
-    certifications: ['nf-e85-015', 'nf-en-1090', 'ce'],
-    specs: [
-      { label: 'Matériau', value: 'Acier galvanisé à chaud' },
-      { label: 'Hauteur', value: '1100 mm' },
-      { label: 'Plinthe', value: '150 mm' },
-      { label: "Effort d'arrêt", value: '300 N/m' },
-    ],
-  },
-  {
-    slug: 'ligne-de-vie',
-    reference: 'MAD-LDV-001',
-    category: 'protection-individuelle',
-    title: { fr: 'Ligne de vie', en: 'Horizontal lifeline' },
-    shortDescription: {
-      fr: 'Ligne de vie horizontale câble inox. Maintenance toiture et façade. Conforme EN 795.',
-      en: 'Stainless steel horizontal lifeline. Roof and façade maintenance. EN 795 compliant.',
-    },
-    certifications: ['ce'],
-    specs: [
-      { label: 'Câble', value: 'Inox A4 Ø 8 mm' },
-      { label: 'Capacité', value: '4 utilisateurs simultanés' },
-      { label: 'Portée', value: "Jusqu'à 12 m entre ancrages" },
-    ],
-  },
-  {
-    slug: 'saut-de-loup',
-    reference: 'MAD-SDL-001',
-    category: 'protection-collective',
-    title: { fr: 'Saut-de-loup', en: 'Skylight protection' },
-    shortDescription: {
-      fr: 'Grille de protection acier posée sur exutoire de fumée ou lanterneau. Anti-chute.',
-      en: 'Steel protection grid over smoke vent or skylight. Fall prevention.',
-    },
-    certifications: ['nf-e85-015', 'ce'],
-    specs: [
-      { label: 'Matériau', value: 'Acier galvanisé' },
-      { label: 'Maille', value: '150 × 150 mm' },
-      { label: 'Charge admissible', value: '1200 N/m²' },
-    ],
-  },
-];
+function makeReference(slug: string, index: number): string {
+  const initials = slug
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '')
+    .split('-')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join('');
+  const n = String(index + 1).padStart(2, '0');
+  return `MAD-${initials}-${n}`.slice(0, 32);
+}
 
 function lexicalFromText(text: string) {
   return {
@@ -214,106 +113,93 @@ async function upsertUser(payload: Awaited<ReturnType<typeof getPayload>>) {
 async function upsertMedia(
   payload: Awaited<ReturnType<typeof getPayload>>,
   filePath: string,
-  alt: { fr: string; en: string },
+  alt: string,
 ): Promise<number> {
   const { docs } = await payload.find({
     collection: 'media',
-    where: { alt: { equals: alt.fr } },
+    where: { alt: { equals: alt } },
     limit: 1,
   });
   if (docs[0]) return docs[0].id;
 
   const created = await payload.create({
     collection: 'media',
-    data: { alt: alt.fr },
+    data: { alt },
     filePath,
-  });
-  await payload.update({
-    collection: 'media',
-    id: created.id,
-    locale: 'en',
-    data: { alt: alt.en },
   });
   return created.id;
 }
 
+async function purgeCollection(
+  payload: Awaited<ReturnType<typeof getPayload>>,
+  collection: 'products' | 'categories',
+): Promise<void> {
+  const { docs } = await payload.find({ collection, limit: 1000, depth: 0 });
+  for (const doc of docs) {
+    await payload.delete({ collection, id: doc.id });
+  }
+  if (docs.length > 0) console.warn(`  ✗ purged ${docs.length} ${collection}`);
+}
+
 async function upsertCategory(
   payload: Awaited<ReturnType<typeof getPayload>>,
-  data: (typeof SEED_CATEGORIES)[number],
+  cat: ScrapedCategory,
 ): Promise<number> {
   const { docs } = await payload.find({
     collection: 'categories',
-    where: { slug: { equals: data.slug } },
+    where: { slug: { equals: cat.slug } },
     limit: 1,
     locale: 'fr',
   });
-
-  if (docs[0]) {
-    await payload.update({
-      collection: 'categories',
-      id: docs[0].id,
-      locale: 'en',
-      data: { title: data.title.en, description: data.description.en },
-    });
-    return docs[0].id;
-  }
+  if (docs[0]) return docs[0].id;
 
   const created = await payload.create({
     collection: 'categories',
     locale: 'fr',
     data: {
-      title: data.title.fr,
-      slug: data.slug,
-      description: data.description.fr,
+      title: cat.name,
+      slug: cat.slug,
+      description: cat.description,
     },
   });
   await payload.update({
     collection: 'categories',
     id: created.id,
     locale: 'en',
-    data: { title: data.title.en, description: data.description.en },
+    data: { title: cat.name, description: cat.description },
   });
   return created.id;
 }
 
 async function upsertProduct(
   payload: Awaited<ReturnType<typeof getPayload>>,
-  data: (typeof SEED_PRODUCTS)[number],
+  prod: ScrapedProduct,
   categoryId: number,
   mediaId: number,
+  index: number,
 ): Promise<void> {
+  const reference = makeReference(prod.slug, index);
+  const description = prod.description || prod.title;
+
   const existing = await payload.find({
     collection: 'products',
-    where: { slug: { equals: data.slug } },
+    where: { slug: { equals: prod.slug } },
     limit: 1,
   });
-
-  if (existing.docs[0]) {
-    await payload.update({
-      collection: 'products',
-      id: existing.docs[0].id,
-      locale: 'en',
-      data: {
-        title: data.title.en,
-        shortDescription: data.shortDescription.en,
-      },
-    });
-    return;
-  }
+  if (existing.docs[0]) return;
 
   const created = await payload.create({
     collection: 'products',
     locale: 'fr',
     data: {
-      title: data.title.fr,
-      slug: data.slug,
-      reference: data.reference,
+      title: prod.title,
+      slug: prod.slug,
+      reference,
       category: categoryId,
-      shortDescription: data.shortDescription.fr,
-      description: lexicalFromText(data.shortDescription.fr) as never,
+      shortDescription: description.slice(0, 280),
+      description: lexicalFromText(description) as never,
       gallery: [{ image: mediaId }],
-      specifications: data.specs,
-      certifications: data.certifications as never[],
+      certifications: inferCertifications(description) as never[],
       _status: 'published',
     },
   });
@@ -323,9 +209,9 @@ async function upsertProduct(
     id: created.id,
     locale: 'en',
     data: {
-      title: data.title.en,
-      shortDescription: data.shortDescription.en,
-      description: lexicalFromText(data.shortDescription.en) as never,
+      title: prod.title,
+      shortDescription: description.slice(0, 280),
+      description: lexicalFromText(description) as never,
     },
   });
 }
@@ -365,12 +251,15 @@ async function upsertPage(
   });
 }
 
-async function upsertGlobals(payload: Awaited<ReturnType<typeof getPayload>>): Promise<void> {
+async function upsertGlobals(
+  payload: Awaited<ReturnType<typeof getPayload>>,
+  categories: ScrapedCategory[],
+): Promise<void> {
   await payload.updateGlobal({
     slug: 'settings',
     data: {
       siteName: 'Mady',
-      baseline: "Fabricant français d'escaliers et accès industriels",
+      baseline: 'Bien protéger, tout simplement.',
       company: {
         legalName: 'Mady SAS',
         siret: '',
@@ -381,12 +270,18 @@ async function upsertGlobals(payload: Awaited<ReturnType<typeof getPayload>>): P
     },
   });
 
+  const firstCategorySlug = categories[0]?.slug ?? 'moyens-dacces';
+
   await payload.updateGlobal({
     slug: 'header',
     data: {
       navigation: [
         { label: 'Accueil', href: '/fr' },
-        { label: 'Catégories', href: '/fr/categorie-produit/moyens-acces' },
+        {
+          label: 'Produits',
+          href: `/fr/categorie-produit/${firstCategorySlug}`,
+        },
+        { label: 'À propos', href: '/fr/a-propos' },
         { label: 'Contact', href: '/fr/contact' },
       ],
       cta: { label: 'Devis', href: '/fr/contact' },
@@ -399,20 +294,10 @@ async function upsertGlobals(payload: Awaited<ReturnType<typeof getPayload>>): P
       columns: [
         {
           heading: 'Catalogue',
-          links: [
-            {
-              label: "Moyens d'accès",
-              href: '/fr/categorie-produit/moyens-acces',
-            },
-            {
-              label: 'Protection collective',
-              href: '/fr/categorie-produit/protection-collective',
-            },
-            {
-              label: 'Protection individuelle',
-              href: '/fr/categorie-produit/protection-individuelle',
-            },
-          ],
+          links: categories.map((c) => ({
+            label: c.name,
+            href: `/fr/categorie-produit/${c.slug}`,
+          })),
         },
         {
           heading: 'Entreprise',
@@ -509,44 +394,54 @@ async function upsertContactForm(payload: Awaited<ReturnType<typeof getPayload>>
 async function main(): Promise<void> {
   const payload = await getPayload({ config });
 
+  console.warn('→ Loading scraped data');
+  const categories = await loadJson<ScrapedCategory[]>('categories.json', []);
+  const products = await loadJson<ScrapedProduct[]>('products.json', []);
+  if (categories.length === 0 || products.length === 0) {
+    console.error('✗ No scraped data. Run `pnpm tsx scripts/scrape-mady.ts` first.');
+    process.exit(1);
+  }
+  console.warn(`  ${categories.length} categories, ${products.length} products`);
+
   console.warn('→ Admin user');
   await upsertUser(payload);
 
-  console.warn('→ Placeholder media');
-  const placeholderMedia = await upsertMedia(payload, FALLBACK_IMAGE, {
-    fr: 'Mady — Illustration produit',
-    en: 'Mady — Product illustration',
-  });
+  console.warn('→ Purge stale products/categories');
+  await purgeCollection(payload, 'products');
+  await purgeCollection(payload, 'categories');
 
-  const scraped = await loadScraped();
-  console.warn(`→ ${scraped.length} scraped items loaded`);
+  console.warn('→ Fallback media');
+  const placeholderMedia = await upsertMedia(
+    payload,
+    FALLBACK_IMAGE,
+    'Mady — Illustration produit',
+  );
 
   console.warn('→ Categories');
   const catIds: Record<string, number> = {};
-  for (const cat of SEED_CATEGORIES) {
+  for (const cat of categories) {
     catIds[cat.slug] = await upsertCategory(payload, cat);
   }
 
   console.warn('→ Products');
-  for (const product of SEED_PRODUCTS) {
-    const categoryId = catIds[product.category];
-    if (!categoryId) continue;
+  for (const [index, prod] of products.entries()) {
+    const categoryId = prod.categorySlug ? catIds[prod.categorySlug] : undefined;
+    if (!categoryId) {
+      console.warn(`  ⚠ skip ${prod.slug} (no category)`);
+      continue;
+    }
 
     let mediaId = placeholderMedia;
-    const match = scraped.find((s) => s.slug.includes(product.slug.split('-')[0] ?? product.slug));
-    if (match && match.imageFiles[0]) {
-      const filepath = path.join(ASSETS_DIR, match.imageFiles[0]);
+    if (prod.imageFiles[0]) {
+      const filepath = path.join(ASSETS_DIR, prod.imageFiles[0]);
       try {
-        mediaId = await upsertMedia(payload, filepath, {
-          fr: product.title.fr,
-          en: product.title.en,
-        });
+        mediaId = await upsertMedia(payload, filepath, prod.title);
       } catch (err) {
-        console.warn(`  ⚠ Couldn't upload image for ${product.slug}:`, err);
+        console.warn(`  ⚠ image upload failed for ${prod.slug}:`, err);
       }
     }
 
-    await upsertProduct(payload, product, categoryId, mediaId);
+    await upsertProduct(payload, prod, categoryId, mediaId, index);
   }
 
   console.warn('→ Pages');
@@ -554,10 +449,7 @@ async function main(): Promise<void> {
     payload,
     'home',
     { fr: 'Accueil', en: 'Home' },
-    {
-      fr: 'Escaliers et accès industriels',
-      en: 'Industrial staircases and access',
-    },
+    { fr: 'Bien protéger, tout simplement.', en: 'Safety, made simple.' },
   );
   await upsertPage(
     payload,
@@ -575,7 +467,7 @@ async function main(): Promise<void> {
   });
 
   console.warn('→ Globals (Header, Footer, Settings)');
-  await upsertGlobals(payload);
+  await upsertGlobals(payload, categories);
 
   console.warn('→ Contact form');
   await upsertContactForm(payload);
