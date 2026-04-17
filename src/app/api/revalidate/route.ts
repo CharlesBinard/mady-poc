@@ -22,7 +22,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ revalidated: false, error: 'invalid path' }, { status: 400 });
   }
 
-  if (body.tag) revalidateTag(body.tag);
+  if (body.tag) revalidateTag(body.tag, 'max');
   if (body.path) revalidatePath(body.path);
 
   return NextResponse.json({

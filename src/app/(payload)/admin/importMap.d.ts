@@ -1,3 +1,3 @@
 import type { ImportMap } from 'payload';
 
-export const importMap: ImportMap = {};
+export const importMap: ImportMap;
