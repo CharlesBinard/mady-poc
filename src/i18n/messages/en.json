@@ -1,0 +1,41 @@
+{
+  "common": {
+    "skipToContent": "Skip to main content",
+    "breadcrumbsLabel": "Breadcrumb",
+    "home": "Home",
+    "products": "Products",
+    "categories": "Categories",
+    "contact": "Contact",
+    "menu": "Menu",
+    "close": "Close",
+    "readMore": "Learn more",
+    "requestQuote": "Request a quote"
+  },
+  "meta": {
+    "siteName": "Mady",
+    "defaultDescription": "French manufacturer of industrial staircases, cage ladders, guardrails and access equipment. Compliant with NF E85-015, NF EN 1090, EN ISO 14122."
+  },
+  "product": {
+    "reference": "Reference",
+    "category": "Category",
+    "specifications": "Technical specifications",
+    "certifications": "Certifications",
+    "documents": "Documents",
+    "related": "Related products",
+    "gallery": "Gallery",
+    "onQuote": "On quote"
+  },
+  "form": {
+    "required": "This field is required",
+    "invalidEmail": "Invalid email",
+    "submit": "Send",
+    "submitting": "Sending…",
+    "success": "Message sent.",
+    "error": "An error occurred, please try again."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The requested page does not exist or was moved.",
+    "cta": "Back to home"
+  }
+}

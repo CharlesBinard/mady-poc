@@ -1,0 +1,41 @@
+{
+  "common": {
+    "skipToContent": "Aller au contenu principal",
+    "breadcrumbsLabel": "Fil d'Ariane",
+    "home": "Accueil",
+    "products": "Produits",
+    "categories": "Catégories",
+    "contact": "Contact",
+    "menu": "Menu",
+    "close": "Fermer",
+    "readMore": "En savoir plus",
+    "requestQuote": "Demander un devis"
+  },
+  "meta": {
+    "siteName": "Mady",
+    "defaultDescription": "Fabricant français d'escaliers industriels, échelles à crinoline, garde-corps et moyens d'accès. Conforme NF E85-015, NF EN 1090, EN ISO 14122."
+  },
+  "product": {
+    "reference": "Référence",
+    "category": "Catégorie",
+    "specifications": "Caractéristiques techniques",
+    "certifications": "Certifications et conformité",
+    "documents": "Documentation",
+    "related": "Produits associés",
+    "gallery": "Galerie",
+    "onQuote": "Sur devis"
+  },
+  "form": {
+    "required": "Ce champ est requis",
+    "invalidEmail": "Email invalide",
+    "submit": "Envoyer",
+    "submitting": "Envoi…",
+    "success": "Message envoyé avec succès.",
+    "error": "Une erreur est survenue, merci de réessayer."
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "La page demandée n'existe pas ou a été déplacée.",
+    "cta": "Retour à l'accueil"
+  }
+}
